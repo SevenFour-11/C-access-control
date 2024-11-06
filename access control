@@ -1,0 +1,253 @@
+#define _CRT_SECURE_NO_WARNINGS 1
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_USERNAME_LEN 50
+#define MAX_PASSWORD_LEN 50
+#define FILE_NAME "C:\\Users\\Seven Four\\Desktop\\users.txt"
+
+typedef struct {
+    int type;
+    char username[MAX_USERNAME_LEN];
+    char password[MAX_PASSWORD_LEN];
+} User;
+
+void displayMenu() {
+    printf("门禁系统\n");
+    printf("1. 登录\n");
+    printf("2. 退出\n");
+    printf("请选择: ");
+}
+
+void adminMenu() {
+    printf("管理员菜单\n");
+    printf("1. 注册用户\n");
+    printf("2. 删除用户\n");
+    printf("3. 修改用户信息\n");
+    printf("4. 显示用户信息\n");
+    printf("5. 退出\n");
+    printf("请选择: ");
+}
+
+void loadUsers(User** users, int* count) {
+    FILE* file = fopen(FILE_NAME, "r");
+    if (!file) {
+        perror("无法打开文件");
+        exit(EXIT_FAILURE);
+    }
+
+    char line[256];
+    *count = 0;
+    while (fgets(line, sizeof(line), file)) {
+        (*count)++;
+    }
+    rewind(file);
+
+    *users = (User*)malloc((*count) * sizeof(User));
+    int i = 0;
+    while (fgets(line, sizeof(line), file)) {
+        sscanf(line, "%d|%[^|]|%s", &(*users)[i].type, (*users)[i].username, (*users)[i].password);
+        i++;
+    }
+
+    fclose(file);
+}
+
+void saveUsers(User* users, int count) {
+    FILE* file = fopen(FILE_NAME, "w");
+    if (!file) {
+        perror("无法打开文件");
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < count; i++) {
+        fprintf(file, "%d|%s|%s\n", users[i].type, users[i].username, users[i].password);
+    }
+
+    fclose(file);
+}
+
+int login(User* users, int count, char* username, char* password) {
+    for (int i = 0; i < count; i++) {
+        if (strcmp(users[i].username, username) == 0 && strcmp(users[i].password, password) == 0) {
+            return users[i].type;
+        }
+    }
+    return -1; // 登录失败
+}
+
+void registerUser() {
+    User newUser;
+    printf("输入用户类型 (0: 用户, 1: 管理员): ");
+    scanf("%d", &newUser.type);
+    printf("输入用户名: ");
+    scanf("%s", newUser.username);
+    printf("输入密码: ");
+    scanf("%s", newUser.password);
+
+    User* users;
+    int count;
+    loadUsers(&users, &count);
+
+    users = (User*)realloc(users, (count + 1) * sizeof(User));
+    users[count] = newUser;
+    count++;
+
+    saveUsers(users, count);
+    free(users);
+
+    printf("用户注册成功！\n");
+}
+
+void deleteUser() {
+    char username[MAX_USERNAME_LEN];
+    printf("输入要删除的用户名: ");
+    scanf("%s", username);
+
+    User* users;
+    int count;
+    loadUsers(&users, &count);
+
+    int found = -1;
+    for (int i = 0; i < count; i++) {
+        if (strcmp(users[i].username, username) == 0) {
+            found = i;
+            break;
+        }
+    }
+
+    if (found == -1) {
+        printf("用户不存在！\n");
+    }
+    else {
+        printf("确定要删除用户 %s 吗？(y/n): ", username);
+        char confirm;
+        scanf(" %c", &confirm);
+        if (confirm == 'y' || confirm == 'Y') {
+            for (int i = found; i < count - 1; i++) {
+                users[i] = users[i + 1];
+            }
+            count--;
+            users = (User*)realloc(users, count * sizeof(User));
+            saveUsers(users, count);
+            free(users);
+            printf("用户删除成功！\n");
+        }
+        else {
+            printf("用户未删除。\n");
+        }
+    }
+}
+
+void modifyUserInfo() {
+    char username[MAX_USERNAME_LEN];
+    printf("输入要修改的用户名: ");
+    scanf("%s", username);
+
+    User* users;
+    int count;
+    loadUsers(&users, &count);
+
+    int found = -1;
+    for (int i = 0; i < count; i++) {
+        if (strcmp(users[i].username, username) == 0) {
+            found = i;
+            break;
+        }
+    }
+
+    if (found == -1) {
+        printf("用户不存在！\n");
+    }
+    else {
+        printf("输入新密码: ");
+        scanf("%s", users[found].password);
+        saveUsers(users, count);
+        free(users);
+        printf("用户信息修改成功！\n");
+    }
+}
+
+void displayUserInfo() {
+    User* users;
+    int count;
+    loadUsers(&users, &count);
+
+    printf("用户列表:\n");
+    for (int i = 0; i < count; i++) {
+        printf("类型: %d, 用户名: %s, 密码: %s\n", users[i].type, users[i].username, users[i].password);
+    }
+
+    free(users);
+}
+
+int main() {
+    int choice;
+    User* users;
+    int count;
+
+    while (1) {
+        displayMenu();
+        scanf("%d", &choice);
+
+        if (choice == 1) {
+            char username[MAX_USERNAME_LEN];
+            char password[MAX_PASSWORD_LEN];
+            printf("输入用户名: ");
+            scanf("%s", username);
+            printf("输入密码: ");
+            scanf("%s", password);
+
+            loadUsers(&users, &count);
+            int userType = login(users, count, username, password);
+            free(users);
+
+            if (userType == -1) {
+                printf("登录失败！\n");
+            }
+            else if (userType == 1) {
+                while (1) {
+                    adminMenu();
+                    int adminChoice;
+                    scanf("%d", &adminChoice);
+
+                    switch (adminChoice) {
+                    case 1:
+                        registerUser();
+                        break;
+                    case 2:
+                        deleteUser();
+                        break;
+                    case 3:
+                        modifyUserInfo();
+                        break;
+                    case 4:
+                        displayUserInfo();
+                        break;
+                    case 5:
+                        return 0;
+                    default:
+                        printf("无效选择，请重试。\n");
+                    }
+                }
+            }
+            else {
+                printf("欢迎用户 %s！\n", username);
+                // 可以添加用户的功能，如查看个人信息等（此处省略）
+                printf("按任意键退出...\n");
+                getchar();
+                getchar(); // 清除缓冲区中的换行符
+                break;
+            }
+        }
+        else if (choice == 2) {
+            return 0;
+        }
+        else {
+            printf("无效选择，请重试。\n");
+        }
+    }
+
+    return 0;
+}
